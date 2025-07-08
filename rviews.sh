@@ -8,24 +8,29 @@ CURL=(
     --compressed
 )
 
+begin_time='1 hour ago'
+end_time='15 minutes ago'
+
 usage() {
 cat <<__EOF__
-usage:  $APPNAME [-h] [OPTION]* <ip> <router>
+usage:  $APPNAME [-h] [OPTION]* <router> [ip]
 
         OPTION:
 
         -h              this help
-        -l              list router (i.e. collector)
+        -b              begin time (default: $begin_time)
+        -e              end time (default: $end_time)
+        -l              list routers (i.e. collectors)
         -R              raw output
 
+        router          router to query (ex: route-views.chicago[.routeviews.org])
         ip              destination ip address
-        router          router to query
 
         ex:
 
         $APPNAME -l
-        $APPNAME 142.250.189.14 route-views.sfmix.routeviews.org
-        $APPNAME 142.250.189.14 route-views.sydney
+        $APPNAME route-views.sydney 142.250.189.14  # find best route
+        $APPNAME -b '30 minutes ago' route-views3   # retrieve updates
 
 __EOF__
 
@@ -85,16 +90,41 @@ getRoute() {
         | html2text -width 20000 -style pretty
 }
 
+getUpdates() {
+    local router=${1%%.routeviews.org}
+    local begin_epoch=$( date -ud "$begin_time" +%s)
+    local end_epoch=$( date -ud "$end_time" +%s)
+    local interval=900
+    local begin_block=$(( ($begin_epoch/$interval)*$interval )) #start of 15-minute block
+    local end_block=$(( ($end_epoch/$interval)*$interval ))
+
+    for ts in $(seq $begin_block $interval $end_block); do
+        local url=$(date -ud @$ts +https://archive.routeviews.org/$router/bgpdata/%Y.%m/UPDATES/updates.%Y%m%d.%H%M.bz2)
+        local cachefile=$WORKDIR/.$APPNAME.updates.$router.$ts.bz2
+
+        [ ! -s "$cachefile" ] && {
+            "${CURL[@]}" -o $cachefile $url
+        }
+
+        if [ -n "$raw" ]; then
+            bzip2 -dc $cachefile
+        else
+            bzip2 -dc $cachefile | bgpdump -v -m -
+        fi
+    done
+}
+
 showBestRoute() {
     [ -n "$raw" ] \
         && cat \
         || sed -nre '/^\s+[0-9]/,/^\s+Last/{ :a;N;/Last/!ba;/ best /p}' -e '/BGP routing table/p'
 }
 
-while getopts hlR c
+while getopts hb:e:lR c
 do
     case $c in
-        b)      start_time="$OPTARG";;
+        b)      begin_time="$OPTARG";;
+        e)      end_time="$OPTARG";;
         l)      listCollectors; exit 0;;
         R)      raw=true;;
         *)      usage;;
@@ -102,9 +132,20 @@ do
 done
 shift $((OPTIND - 1))
 
-[ $# -ne 2 ] && usage
+[ $# -eq 0 ] && usage
 
-addr=$1
-router=$2
+router=$1
+addr=$2
 
-getRoute $addr $router | showBestRoute
+action=getUpdates
+[ -n "$addr" ] && action=getRoute
+
+case $action in
+    getRoute)
+        getRoute $addr $router | showBestRoute
+        ;;
+
+    getUpdates)
+        getUpdates $router
+        ;;
+esac
