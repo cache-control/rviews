@@ -14,7 +14,7 @@ protocol=IPv4
 
 usage() {
 cat <<__EOF__
-usage:  $APPNAME [-h] [OPTION]* <router> [ip]
+usage:  $APPNAME [-h] [OPTION]* <router> [addr]
 
         OPTION:
 
@@ -26,13 +26,14 @@ usage:  $APPNAME [-h] [OPTION]* <router> [ip]
         -R              raw output
 
         router          router to query (ex: route-views.chicago[.routeviews.org])
-        ip              destination ip address
+        addr            destination ip address or AS regex
 
         ex:
 
         $APPNAME -l
         $APPNAME route-views.sydney 142.250.189.14  # find best route
         $APPNAME -b '30 minutes ago' route-views3   # retrieve updates
+        $APPNAME frr _15169$                        # get routes for AS
 
 __EOF__
 
@@ -81,17 +82,29 @@ getRoute() {
     local query=bgp
     local protocol=$protocol
     local url=https://lg.routeviews.org/lg/
-    local payload=
+    local payload=()
+    local filter=(
+        sed -nr
+        -e '/^\s+[0-9]/,/^\s+Last/{ :a;N;/Last/!ba;/ best /p}'
+        -e '/BGP routing table/p'
+    )
 
     [[ $addr =~ : ]] && protocol=IPv6
+    [[ $addr =~ ^[^:.]+$ ]] && {
+        query='bgp regexp'
+        raw=true
+    }
 
-    payload+="query=$query"
-    payload+="&protocol=$protocol"
-    payload+="&addr=$addr"
-    payload+="&router=$router"
+    [ -n "$raw" ] && filter=(cat)
 
-    "${CURL[@]}" $url --data-raw "$payload" \
-        | html2text -width 20000 -style pretty
+    payload+=(--data-urlencode "query=$query")
+    payload+=(--data-raw "protocol=$protocol")
+    payload+=(--data-urlencode "addr=$addr")
+    payload+=(--data-raw "router=$router")
+
+    "${CURL[@]}" $url "${payload[@]}" \
+        | html2text -width 20000 -style pretty \
+        | "${filter[@]}"
 }
 
 getUpdates() {
@@ -118,12 +131,6 @@ getUpdates() {
     done
 }
 
-showBestRoute() {
-    [ -n "$raw" ] \
-        && cat \
-        || sed -nre '/^\s+[0-9]/,/^\s+Last/{ :a;N;/Last/!ba;/ best /p}' -e '/BGP routing table/p'
-}
-
 while getopts h6b:e:lR c
 do
     case $c in
@@ -147,7 +154,7 @@ action=getUpdates
 
 case $action in
     getRoute)
-        getRoute $addr $router | showBestRoute
+        getRoute $addr $router
         ;;
 
     getUpdates)
