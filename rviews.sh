@@ -10,6 +10,7 @@ CURL=(
 
 begin_time='1 hour ago'
 end_time='15 minutes ago'
+protocol=IPv4
 
 usage() {
 cat <<__EOF__
@@ -18,6 +19,7 @@ usage:  $APPNAME [-h] [OPTION]* <router> [ip]
         OPTION:
 
         -h              this help
+        -6              use IPv6 (default: $protocol)
         -b              begin time (default: $begin_time)
         -e              end time (default: $end_time)
         -l              list routers (i.e. collectors)
@@ -77,9 +79,11 @@ getRoute() {
     local addr=$1
     local router=${2%%.routeviews.org}+
     local query=bgp
-    local protocol=IPv4
+    local protocol=$protocol
     local url=https://lg.routeviews.org/lg/
     local payload=
+
+    [[ $addr =~ : ]] && protocol=IPv6
 
     payload+="query=$query"
     payload+="&protocol=$protocol"
@@ -120,9 +124,10 @@ showBestRoute() {
         || sed -nre '/^\s+[0-9]/,/^\s+Last/{ :a;N;/Last/!ba;/ best /p}' -e '/BGP routing table/p'
 }
 
-while getopts hb:e:lR c
+while getopts h6b:e:lR c
 do
     case $c in
+        6)      protocol=IPv6;;
         b)      begin_time="$OPTARG";;
         e)      end_time="$OPTARG";;
         l)      listCollectors; exit 0;;
