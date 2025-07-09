@@ -26,25 +26,26 @@ latter.
 
 ## Usage
 ```sh
-usage:  rviews.sh [-h] [OPTION]* <router> [ip]
+usage:  rviews.sh [-h] [OPTION]* <router> [addr]
 
         OPTION:
 
         -h              this help
+        -6              use IPv6 (default: IPv4)
         -b              begin time (default: 1 hour ago)
         -e              end time (default: 15 minutes ago)
         -l              list routers (i.e. collectors)
         -R              raw output
 
-        router          router to query
-        ip              destination ip address
+        router          router to query (ex: route-views.chicago[.routeviews.org])
+        addr            destination ip address or AS regex
 
         ex:
 
         rviews.sh -l
-        rviews.sh route-views.sfmix.routeviews.org 142.250.189.14a   # find best route 
-        rviews.sh route-views.sydney 142.250.189.14                  # find best route
-        rviews.sh -b '30 minutes ago' route-views3                   # retrieve updates
+        rviews.sh route-views.sydney 142.250.189.14  # find best route
+        rviews.sh -b '30 minutes ago' route-views3   # retrieve updates
+        rviews.sh frr _15169$                        # get routes for AS
 
 ```
 
