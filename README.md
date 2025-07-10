@@ -24,7 +24,7 @@ latter.
   sudo apt install miller
   ```
 
-## Usage
+## Help
 ```sh
 usage:  rviews.sh [-h] [OPTION]* <router> [addr]
 
@@ -48,6 +48,20 @@ usage:  rviews.sh [-h] [OPTION]* <router> [addr]
         rviews.sh frr _15169$                        # get routes for AS
 
 ```
+
+## Usage
+
+Use `-l` flag to get list of available routers (i.e. collectors).
+
+The first required argument is `router` which is a collector name; it may be
+specified with or without the domain `.routeviews.org`. The second
+argument, `addr`, is optional.
+
+* If `addr` is omitted: updates are retrieved from `router`
+* if `addr` is an IP address: the best route is pulled from `router` for `addr`
+* if `addr` is **not** an IP address: execute `bgp regexp` for `addr`
+
+Use `-b` and `-e` flags to specify time window for retrieval of updates.
 
 ## Examples
 
