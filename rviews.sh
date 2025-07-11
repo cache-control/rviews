@@ -23,6 +23,7 @@ usage:  $APPNAME [-h] [OPTION]* <router> [addr]
         -b              begin time (default: $begin_time)
         -e              end time (default: $end_time)
         -l              list routers (i.e. collectors)
+        -L              list routers with extra details
         -R              raw output
 
         router          router to query (ex: route-views.chicago[.routeviews.org])
@@ -74,6 +75,25 @@ listCollectors() {
                 then cut -o -f IX,Location,Proto,Collector
 
     } | mlr $outputType label IX,Location,Proto,Collector
+}
+
+listCollectorsWithDetails() {
+    local rawCollectors=$WORKDIR/.$APPNAME.collectors-details-$(date +%Y%m%d).html
+    local outputType=--c2p
+
+    [ -n "$raw" ] && outputType=--csv
+
+    # cache HTML collectors page
+    [ ! -s $rawCollectors ] && {
+        "${CURL[@]}" -o $rawCollectors https://archive.routeviews.org/peers/peering-status.html
+    }
+
+    fgrep .routeviews.org $rawCollectors \
+        | mlr --hi $outputType --ifs='|' \
+            clean-whitespace \
+            then filter 'if ($1 =~ "^([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+([^\s]+)") { $col="\1"; $as="\2"; $addr="\3"; $prefixes="\4";}' \
+            then cut -o -f col,as,addr,prefixes,2,3,4 \
+            then label collector,asnum,address,prefixes,cc,region,asname
 }
 
 getRoute() {
@@ -131,13 +151,14 @@ getUpdates() {
     done
 }
 
-while getopts h6b:e:lR c
+while getopts h6b:e:lLR c
 do
     case $c in
         6)      protocol=IPv6;;
         b)      begin_time="$OPTARG";;
         e)      end_time="$OPTARG";;
         l)      listCollectors; exit 0;;
+        L)      listCollectorsWithDetails; exit 0;;
         R)      raw=true;;
         *)      usage;;
     esac
