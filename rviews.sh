@@ -42,7 +42,7 @@ __EOF__
 }
 
 listCollectors() {
-    local rawCollectors=$WORKDIR/.$APPNAME.collectors.html
+    local rawCollectors=$WORKDIR/.$APPNAME.collectors-$(date +%Y%m%d).html
     local csvCollectors=$rawCollectors.csv
     local outputType=--c2p
 
