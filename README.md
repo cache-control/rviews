@@ -35,6 +35,7 @@ usage:  rviews.sh [-h] [OPTION]* <router> [addr]
         -b              begin time (default: 1 hour ago)
         -e              end time (default: 15 minutes ago)
         -l              list routers (i.e. collectors)
+        -L              list routers with extra details
         -R              raw output
 
         router          router to query (ex: route-views.chicago[.routeviews.org])
